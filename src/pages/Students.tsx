@@ -8,21 +8,34 @@ import AdminProfileDropdown from '../components/AdminProfileDropdown';
 import UserInfoModal from '../components/UserInfoModal';
 import EditStudentModal from '../components/EditStudentModal';
 import ConfirmationModal from '../components/ConfirmationModal';
+import BulkUploadModal from '../components/BulkUploadModal';
 
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
 interface Student {
   id: string;
-  studentId: string;
+  code: string | null;
   fullName: string;
-  email: string;
-  phone: string;
-  level: string;
-  hall: string;
-  programDurationYears: number;
-  dateOfAdmission: string;
   gender: string;
-  status: string;
+  level: string;
+  programOfStudy: string | null;
+  programDurationYears: number;
+  expectedCompletionYear: number | null;
+  hall: string;
+  role: string;
+  dateOfAdmission: string;
+  dateOfBirth: string | null;
+  residence: string | null;
+  guardianName: string | null;
+  guardianContact: string | null;
+  localChurchName: string | null;
+  localChurchLocation: string | null;
+  district: string | null;
+  email: string | null;
+  phone: string | null;
+  profileImageUrl: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export default function Students() {
@@ -36,6 +49,7 @@ export default function Students() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterHall, setFilterHall] = useState('');
@@ -76,7 +90,7 @@ export default function Students() {
   const filteredStudents = students.filter(student => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = (student.fullName?.toLowerCase().includes(searchLower) || false) ||
-                         (student.studentId?.toLowerCase().includes(searchLower) || false) ||
+                         (student.code?.toLowerCase().includes(searchLower) || false) ||
                          (student.email?.toLowerCase().includes(searchLower) || false);
     const matchesLevel = !filterLevel || student.level === filterLevel;
     const matchesHall = !filterHall || student.hall === filterHall;
@@ -146,7 +160,7 @@ export default function Students() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <img src={logo} alt="GNAASUG" className="h-6 w-6 sm:h-8 sm:h-12 sm:w-12 object-contain"/>
+            <img src={logo} alt="GNAASUG" className="h-6 w-6 sm:h-8 sm:w-8 object-contain"/>
             <div className="text-xs sm:text-sm font-semibold truncate">Students Management</div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -175,8 +189,23 @@ export default function Students() {
         <main className="flex-1 p-2 sm:p-3 md:p-4 lg:p-6">
           {/* Header Section */}
           <div className="mb-4 sm:mb-6">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2">Students Management</h1>
-            <p className="text-sm text-gray-600">Manage all students in the system</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2">Students Management</h1>
+                <p className="text-sm text-gray-600">Manage all students in the system</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsBulkUploadModalOpen(true)}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Bulk Upload
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Filters and Search */}
@@ -273,7 +302,7 @@ export default function Students() {
                         onClick={() => handleStudentClick(student)}
                       >
                         <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {student.studentId}
+                          {student.code}
                         </td>
                         <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-900">
                           {student.fullName}
@@ -285,12 +314,8 @@ export default function Students() {
                           {student.hall}
                         </td>
                         <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            student.status === 'ACTIVE' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {student.status}
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {student.role}
                           </span>
                         </td>
                         <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm font-medium">
@@ -463,6 +488,16 @@ export default function Students() {
         confirmText="Delete Student"
         cancelText="Cancel"
         type="danger"
+      />
+
+      {/* Bulk Upload Modal */}
+      <BulkUploadModal
+        isOpen={isBulkUploadModalOpen}
+        onClose={() => setIsBulkUploadModalOpen(false)}
+        onSuccess={() => {
+          fetchStudents();
+          setIsBulkUploadModalOpen(false);
+        }}
       />
     </div>
   );

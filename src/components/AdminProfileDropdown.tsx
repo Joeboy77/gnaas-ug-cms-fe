@@ -16,11 +16,20 @@ interface SecretaryFormData {
   phone: string;
   studentId: string;
   level: string;
+  programOfStudy: string;
+  programDurationYears: number;
+  expectedCompletionYear: string;
   hall: string;
   gender: string;
   role: string;
-  programDurationYears: number;
   dateOfAdmission: string;
+  dateOfBirth: string;
+  residence: string;
+  guardianName: string;
+  guardianContact: string;
+  localChurchName: string;
+  localChurchLocation: string;
+  district: string;
   profileImageUrl: string;
   password: string;
   confirmPassword: string;
@@ -36,11 +45,20 @@ export default function AdminProfileDropdown({ isOpen, onClose }: AdminProfileDr
     phone: '',
     studentId: '',
     level: '',
+    programOfStudy: '',
+    programDurationYears: 4,
+    expectedCompletionYear: '',
     hall: '',
     gender: '',
     role: 'Member',
-    programDurationYears: 4,
     dateOfAdmission: '',
+    dateOfBirth: '',
+    residence: '',
+    guardianName: '',
+    guardianContact: '',
+    localChurchName: '',
+    localChurchLocation: '',
+    district: '',
     profileImageUrl: '',
     password: '',
     confirmPassword: ''
@@ -135,11 +153,20 @@ export default function AdminProfileDropdown({ isOpen, onClose }: AdminProfileDr
           phone: secretaryForm.phone.trim(),
           studentId: secretaryForm.studentId.trim(),
           level: secretaryForm.level,
+          programOfStudy: secretaryForm.programOfStudy.trim(),
+          programDurationYears: secretaryForm.programDurationYears,
+          expectedCompletionYear: secretaryForm.expectedCompletionYear ? parseInt(secretaryForm.expectedCompletionYear) : null,
           hall: secretaryForm.hall,
           gender: secretaryForm.gender,
           role: secretaryForm.role,
-          programDurationYears: secretaryForm.programDurationYears,
           dateOfAdmission: secretaryForm.dateOfAdmission,
+          dateOfBirth: secretaryForm.dateOfBirth || null,
+          residence: secretaryForm.residence.trim() || null,
+          guardianName: secretaryForm.guardianName.trim() || null,
+          guardianContact: secretaryForm.guardianContact.trim() || null,
+          localChurchName: secretaryForm.localChurchName.trim() || null,
+          localChurchLocation: secretaryForm.localChurchLocation.trim() || null,
+          district: secretaryForm.district.trim() || null,
           profileImageUrl: secretaryForm.profileImageUrl.trim(),
           password: secretaryForm.password
         })
@@ -155,11 +182,20 @@ export default function AdminProfileDropdown({ isOpen, onClose }: AdminProfileDr
           phone: '',
           studentId: '',
           level: '',
+          programOfStudy: '',
+          programDurationYears: 4,
+          expectedCompletionYear: '',
           hall: '',
           gender: '',
           role: 'Member',
-          programDurationYears: 4,
           dateOfAdmission: '',
+          dateOfBirth: '',
+          residence: '',
+          guardianName: '',
+          guardianContact: '',
+          localChurchName: '',
+          localChurchLocation: '',
+          district: '',
           profileImageUrl: '',
           password: '', 
           confirmPassword: '' 
@@ -185,11 +221,20 @@ export default function AdminProfileDropdown({ isOpen, onClose }: AdminProfileDr
       phone: '',
       studentId: '',
       level: '',
+      programOfStudy: '',
+      programDurationYears: 4,
+      expectedCompletionYear: '',
       hall: '',
       gender: '',
       role: 'Member',
-      programDurationYears: 4,
       dateOfAdmission: '',
+      dateOfBirth: '',
+      residence: '',
+      guardianName: '',
+      guardianContact: '',
+      localChurchName: '',
+      localChurchLocation: '',
+      district: '',
       profileImageUrl: '',
       password: '', 
       confirmPassword: '' 
@@ -573,6 +618,36 @@ export default function AdminProfileDropdown({ isOpen, onClose }: AdminProfileDr
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Program of Study
+                    </label>
+                    <input
+                      type="text"
+                      value={secretaryForm.programOfStudy}
+                      onChange={(e) => setSecretaryForm(prev => ({ ...prev, programOfStudy: e.target.value }))}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. Computer Science"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Expected Completion Year
+                    </label>
+                    <input
+                      type="number"
+                      min="1900"
+                      max="2100"
+                      value={secretaryForm.expectedCompletionYear}
+                      onChange={(e) => setSecretaryForm(prev => ({ ...prev, expectedCompletionYear: e.target.value }))}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. 2027"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Role *
                     </label>
                     <select
@@ -586,6 +661,18 @@ export default function AdminProfileDropdown({ isOpen, onClose }: AdminProfileDr
                       <option value="Visitor">Visitor</option>
                     </select>
                   </div>
+                  
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      value={secretaryForm.dateOfBirth}
+                      onChange={(e) => setSecretaryForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -598,6 +685,93 @@ export default function AdminProfileDropdown({ isOpen, onClose }: AdminProfileDr
                     onChange={(e) => setSecretaryForm(prev => ({ ...prev, dateOfAdmission: e.target.value }))}
                     className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
+                  />
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-gray-900 border-b pb-2">Additional Information</h4>
+                
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Place of Residence
+                  </label>
+                  <input
+                    type="text"
+                    value={secretaryForm.residence}
+                    onChange={(e) => setSecretaryForm(prev => ({ ...prev, residence: e.target.value }))}
+                    className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g. Madina"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Parent/Guardian Name
+                    </label>
+                    <input
+                      type="text"
+                      value={secretaryForm.guardianName}
+                      onChange={(e) => setSecretaryForm(prev => ({ ...prev, guardianName: e.target.value }))}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. John Doe"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Parent/Guardian Contact
+                    </label>
+                    <input
+                      type="tel"
+                      value={secretaryForm.guardianContact}
+                      onChange={(e) => setSecretaryForm(prev => ({ ...prev, guardianContact: e.target.value }))}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. +233 XX XXX XXXX"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Local Church Name
+                    </label>
+                    <input
+                      type="text"
+                      value={secretaryForm.localChurchName}
+                      onChange={(e) => setSecretaryForm(prev => ({ ...prev, localChurchName: e.target.value }))}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. Legon SDA"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Local Church Location
+                    </label>
+                    <input
+                      type="text"
+                      value={secretaryForm.localChurchLocation}
+                      onChange={(e) => setSecretaryForm(prev => ({ ...prev, localChurchLocation: e.target.value }))}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. Legon"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    District
+                  </label>
+                  <input
+                    type="text"
+                    value={secretaryForm.district}
+                    onChange={(e) => setSecretaryForm(prev => ({ ...prev, district: e.target.value }))}
+                    className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g. Accra North"
                   />
                 </div>
               </div>

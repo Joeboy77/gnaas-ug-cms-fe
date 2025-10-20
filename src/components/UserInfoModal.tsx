@@ -1,20 +1,27 @@
-import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Student {
-  id: number;
-  code: string;
+  id: string;
+  code: string | null;
   fullName: string;
   gender: string;
   level: string;
+  programOfStudy: string | null;
+  programDurationYears: number;
+  expectedCompletionYear: number | null;
   hall: string;
   role: string;
-  email?: string;
-  phone?: string;
-  dateOfBirth?: string;
-  program?: string;
-  yearOfAdmission?: string;
-  profileImageUrl?: string;
+  dateOfAdmission: string;
+  dateOfBirth: string | null;
+  residence: string | null;
+  guardianName: string | null;
+  guardianContact: string | null;
+  localChurchName: string | null;
+  localChurchLocation: string | null;
+  district: string | null;
+  email: string | null;
+  phone: string | null;
+  profileImageUrl: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -78,7 +85,8 @@ export default function UserInfoModal({ student, isOpen, onClose }: UserInfoModa
           </div>
 
           {/* Information Grid */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Personal Information */}
             <div className="rounded-lg bg-gray-50 p-4">
               <h4 className="text-sm font-medium text-gray-900">Personal Information</h4>
               <div className="mt-3 space-y-2">
@@ -98,6 +106,12 @@ export default function UserInfoModal({ student, isOpen, onClose }: UserInfoModa
                     </p>
                   </div>
                 )}
+                {student.residence && (
+                  <div>
+                    <span className="text-xs text-gray-500">Place of Residence:</span>
+                    <p className="text-sm font-medium text-gray-900">{student.residence}</p>
+                  </div>
+                )}
                 {student.email && (
                   <div>
                     <span className="text-xs text-gray-500">Email:</span>
@@ -113,6 +127,7 @@ export default function UserInfoModal({ student, isOpen, onClose }: UserInfoModa
               </div>
             </div>
 
+            {/* Academic Information */}
             <div className="rounded-lg bg-gray-50 p-4">
               <h4 className="text-sm font-medium text-gray-900">Academic Information</h4>
               <div className="mt-3 space-y-2">
@@ -124,20 +139,78 @@ export default function UserInfoModal({ student, isOpen, onClose }: UserInfoModa
                   <span className="text-xs text-gray-500">Hall:</span>
                   <p className="text-sm font-medium text-gray-900">{student.hall}</p>
                 </div>
-                {student.program && (
+                {student.programOfStudy && (
                   <div>
-                    <span className="text-xs text-gray-500">Program:</span>
-                    <p className="text-sm font-medium text-gray-900">{student.program}</p>
+                    <span className="text-xs text-gray-500">Program of Study:</span>
+                    <p className="text-sm font-medium text-gray-900">{student.programOfStudy}</p>
                   </div>
                 )}
-                {student.yearOfAdmission && (
+                <div>
+                  <span className="text-xs text-gray-500">Program Duration:</span>
+                  <p className="text-sm font-medium text-gray-900">{student.programDurationYears} year{student.programDurationYears > 1 ? 's' : ''}</p>
+                </div>
+                {student.expectedCompletionYear && (
                   <div>
-                    <span className="text-xs text-gray-500">Year of Admission:</span>
-                    <p className="text-sm font-medium text-gray-900">{student.yearOfAdmission}</p>
+                    <span className="text-xs text-gray-500">Expected Completion Year:</span>
+                    <p className="text-sm font-medium text-gray-900">{student.expectedCompletionYear}</p>
                   </div>
                 )}
+                <div>
+                  <span className="text-xs text-gray-500">Date of Admission:</span>
+                  <p className="text-sm font-medium text-gray-900">
+                    {new Date(student.dateOfAdmission).toLocaleDateString()}
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* Guardian Information */}
+            {(student.guardianName || student.guardianContact) && (
+              <div className="rounded-lg bg-gray-50 p-4">
+                <h4 className="text-sm font-medium text-gray-900">Guardian Information</h4>
+                <div className="mt-3 space-y-2">
+                  {student.guardianName && (
+                    <div>
+                      <span className="text-xs text-gray-500">Guardian Name:</span>
+                      <p className="text-sm font-medium text-gray-900">{student.guardianName}</p>
+                    </div>
+                  )}
+                  {student.guardianContact && (
+                    <div>
+                      <span className="text-xs text-gray-500">Guardian Contact:</span>
+                      <p className="text-sm font-medium text-gray-900">{student.guardianContact}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Church Information */}
+            {(student.localChurchName || student.localChurchLocation || student.district) && (
+              <div className="rounded-lg bg-gray-50 p-4">
+                <h4 className="text-sm font-medium text-gray-900">Church Information</h4>
+                <div className="mt-3 space-y-2">
+                  {student.localChurchName && (
+                    <div>
+                      <span className="text-xs text-gray-500">Local Church Name:</span>
+                      <p className="text-sm font-medium text-gray-900">{student.localChurchName}</p>
+                    </div>
+                  )}
+                  {student.localChurchLocation && (
+                    <div>
+                      <span className="text-xs text-gray-500">Church Location:</span>
+                      <p className="text-sm font-medium text-gray-900">{student.localChurchLocation}</p>
+                    </div>
+                  )}
+                  {student.district && (
+                    <div>
+                      <span className="text-xs text-gray-500">District:</span>
+                      <p className="text-sm font-medium text-gray-900">{student.district}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* System Information */}

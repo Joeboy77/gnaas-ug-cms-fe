@@ -20,8 +20,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   Area,
   AreaChart
 } from 'recharts';
@@ -78,6 +76,8 @@ export default function AdminDashboard(){
   const [availableLevels, setAvailableLevels] = useState<{level: string, count: number, label: string, hasStudents: boolean}[]>([]);
   const [validTargets, setValidTargets] = useState<string[]>([]);
   const [alumniEligibleCount, setAlumniEligibleCount] = useState(0);
+  const [lastPromotionActionId, setLastPromotionActionId] = useState<string | null>(null);
+  const [undoingPromotion, setUndoingPromotion] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
@@ -249,6 +249,11 @@ export default function AdminDashboard(){
         const result = await response.json();
         toast.success(`Successfully promoted ${result.promotedCount} students from ${promotionFrom} to ${promotionTo}`);
         
+        // Store action ID for undo functionality
+        if (result.actionId) {
+          setLastPromotionActionId(result.actionId);
+        }
+        
         // Refresh data
         fetchDashboardStats();
         fetchChartsData();
@@ -263,6 +268,43 @@ export default function AdminDashboard(){
       toast.error('Network error during promotion');
     } finally {
       setPromotionLoading(false);
+    }
+  };
+
+  const handleUndoPromotion = async () => {
+    if (!lastPromotionActionId || !token) return;
+
+    setUndoingPromotion(true);
+    try {
+      const response = await fetch(`${API}/admin/promotions/undo/${lastPromotionActionId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Successfully undone promotion. ${data.undone} students reverted.`);
+        
+        // Clear the action ID
+        setLastPromotionActionId(null);
+        
+        // Refresh data
+        fetchDashboardStats();
+        fetchChartsData();
+        fetchAvailableLevels();
+        fetchAlumniEligibleCount();
+      } else {
+        toast.error(data.message || 'Failed to undo promotion');
+      }
+    } catch (e) {
+      console.error('Undo promotion error:', e);
+      toast.error('Failed to undo promotion');
+    } finally {
+      setUndoingPromotion(false);
     }
   };
 
@@ -289,7 +331,7 @@ export default function AdminDashboard(){
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <img src={logo} alt="GNAASUG" className="h-6 w-6 sm:h-8 sm:h-12 sm:w-12 object-contain"/>
+            <img src={logo} alt="GNAASUG" className="h-6 w-6 sm:h-8 sm:w-8 object-contain"/>
             <div className="text-xs sm:text-sm font-semibold truncate">Super Admin Dashboard</div>
             <button
               onClick={fetchDashboardStats}
@@ -488,11 +530,11 @@ export default function AdminDashboard(){
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={genderData}
+                        data={genderData as any}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                         outerRadius={60}
                         fill="#8884d8"
                         dataKey="value"
@@ -596,20 +638,38 @@ export default function AdminDashboard(){
                   </select>
                 </div>
               </div>
-              <button 
-                onClick={handleBatchPromotion}
-                disabled={promotionLoading || promotionFrom === promotionTo}
-                className="mt-2 sm:mt-3 w-full rounded bg-[#0E3F8E] py-2 px-3 text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium transition-all duration-200"
-              >
-                {promotionLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Promoting...
-                  </div>
-                ) : (
-                  'Promote Students'
+              <div className="flex flex-col gap-2 sm:gap-3">
+                <button 
+                  onClick={handleBatchPromotion}
+                  disabled={promotionLoading || promotionFrom === promotionTo}
+                  className="w-full rounded bg-[#0E3F8E] py-2 px-3 text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium transition-all duration-200"
+                >
+                  {promotionLoading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Promoting...
+                    </div>
+                  ) : (
+                    'Promote Students'
+                  )}
+                </button>
+                {lastPromotionActionId && (
+                  <button 
+                    onClick={handleUndoPromotion}
+                    disabled={undoingPromotion}
+                    className="w-full rounded bg-red-600 py-2 px-3 text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium transition-all duration-200"
+                  >
+                    {undoingPromotion ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Undoing...
+                      </div>
+                    ) : (
+                      'Undo Last Promotion'
+                    )}
+                  </button>
                 )}
-              </button>
+              </div>
             </Card>
             <Card title="Auto-Alumni Status">
               <div className="rounded border border-yellow-200 bg-yellow-50 p-2 sm:p-3 text-xs sm:text-sm text-yellow-800">

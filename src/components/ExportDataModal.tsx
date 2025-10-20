@@ -367,7 +367,7 @@ export default function ExportDataModal({ isOpen, onClose, initialExportBy, init
                   onChange={(e) => setIncludePersonalInfo(e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <span className="ml-2 text-sm text-gray-700">Personal Information (Name, Gender, Program Duration)</span>
+                <span className="ml-2 text-sm text-gray-700">Personal Information (Name, Gender, Program Duration, Program of Study, Expected Completion Year, Date of Birth, Place of Residence, Guardian Info, Church Info, District)</span>
               </label>
               
               <label className="flex items-center">
@@ -377,7 +377,7 @@ export default function ExportDataModal({ isOpen, onClose, initialExportBy, init
                   onChange={(e) => setIncludeContactInfo(e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <span className="ml-2 text-sm text-gray-700">Contact Information (Phone, Email)</span>
+                <span className="ml-2 text-sm text-gray-700">Contact Information (Phone, Email, Profile Image URL)</span>
               </label>
               
               <label className="flex items-center">

@@ -82,6 +82,15 @@ export default function MarkAttendance() {
   
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  // Mark all present undo state
+  const [lastMarkAllActionId, setLastMarkAllActionId] = useState<string | null>(null);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [undoingMarkAll, setUndoingMarkAll] = useState(false);
+  
+  // Individual attendance undo state - keyed by date and studentId
+  const [individualActions, setIndividualActions] = useState<Record<string, Record<number, string>>>({});
+  const [undoingIndividual, setUndoingIndividual] = useState<Record<number, boolean>>({});
 
   // Profile modal handlers
   const handleProfileClick = () => {
@@ -155,22 +164,64 @@ export default function MarkAttendance() {
     setShowStatsModal(true);
   };
 
-  const fetchUnmarkedStudents = async () => {
+
+  const fetchAllStudents = async () => {
     try {
+      setLoading(true);
       const queryParams = new URLSearchParams();
       if (filters.hall) queryParams.append('hall', filters.hall);
       if (filters.level) queryParams.append('level', filters.level);
       if (filters.gender) queryParams.append('gender', filters.gender);
       
-      const res = await fetch(`${API}/attendance/unmarked-members/${selectedDate}?${queryParams}`, {
+      // Fetch unmarked students
+      const unmarkedRes = await fetch(`${API}/attendance/unmarked-members/${selectedDate}?${queryParams}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await res.json();
-      if (res.ok) {
-        setStudents(data);
-      }
+      const unmarkedStudents = unmarkedRes.ok ? await unmarkedRes.json() : [];
+      
+      // Fetch marked students
+      const markedRes = await fetch(`${API}/attendance/members-present/${selectedDate}?${queryParams}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const markedStudents = markedRes.ok ? await markedRes.json() : [];
+      
+      console.log('Unmarked students:', unmarkedStudents.length);
+      console.log('Marked students:', markedStudents.length);
+      
+      // Combine both lists and remove duplicates
+      const allStudents = [...unmarkedStudents, ...markedStudents];
+      const uniqueStudents = allStudents.filter((student, index, self) => 
+        index === self.findIndex(s => s.id === student.id)
+      );
+      
+      setStudents(uniqueStudents);
+      
+      // Set attendance state for marked students
+      const attendanceState: Record<number, boolean> = {};
+      const actionsState: Record<string, Record<number, string>> = {};
+      
+      markedStudents.forEach((student: any) => {
+        attendanceState[student.id] = true;
+        // For already marked students, we need to create a dummy actionId for undo functionality
+        // In a real scenario, you'd fetch this from the backend, but for now we'll use a placeholder
+        if (!actionsState[selectedDate]) {
+          actionsState[selectedDate] = {};
+        }
+        // Use a placeholder actionId - in production, you'd fetch the real actionId from the backend
+        actionsState[selectedDate][student.id] = `placeholder-${student.id}-${Date.now()}`;
+      });
+      
+      setAttendance(attendanceState);
+      setIndividualActions(prev => ({
+        ...prev,
+        ...actionsState
+      }));
+      
+      console.log('Total students loaded:', uniqueStudents.length);
+      console.log('Attendance state:', attendanceState);
+      
     } catch (e) {
-      console.error('Failed to fetch unmarked students:', e);
+      console.error('Failed to fetch all students:', e);
     } finally {
       setLoading(false);
     }
@@ -180,7 +231,10 @@ export default function MarkAttendance() {
     if (token) {
       fetchAttendanceStatus();
       fetchAttendanceStats();
-      fetchUnmarkedStudents();
+      fetchAllStudents();
+      
+      // Clear individual actions when date changes
+      setIndividualActions({});
     }
   }, [token, selectedDate, filters]);
 
@@ -196,12 +250,26 @@ export default function MarkAttendance() {
       });
       
       if (res.ok) {
+        const data = await res.json();
         setAttendance(prev => ({
           ...prev,
           [studentId]: isPresent
         }));
-        fetchUnmarkedStudents();
-        fetchAttendanceStats();
+        
+        // Store action ID for undo functionality - keyed by date and studentId
+        if (data.actionId) {
+          setIndividualActions(prev => ({
+            ...prev,
+            [selectedDate]: {
+              ...prev[selectedDate],
+              [studentId]: data.actionId
+            }
+          }));
+        }
+        
+        // Refresh data to get updated student lists
+        await fetchAllStudents();
+        await fetchAttendanceStats();
         toast.success(isPresent ? 'Member marked present' : 'Member marked absent');
         
         const student = students.find(s => s.id === studentId);
@@ -210,7 +278,13 @@ export default function MarkAttendance() {
         }
       } else {
         const error = await res.json();
+        console.error('Attendance marking error:', error);
         toast.error(error.message || 'Failed to mark attendance');
+        
+        // If student is already marked, refresh data to show current state
+        if (error.message?.includes('already marked')) {
+          await fetchAllStudents();
+        }
       }
     } catch (e) {
       console.error('Failed to mark attendance:', e);
@@ -218,16 +292,180 @@ export default function MarkAttendance() {
     }
   };
 
-  const markAllPresent = () => {
-    const newAttendance: Record<number, boolean> = {};
-    students.forEach(student => {
-      newAttendance[student.id] = true;
-    });
-    setAttendance(newAttendance);
+  const markAllPresent = async () => {
+    if (!token) return;
+    
+    setMarkingAll(true);
+    try {
+      const response = await fetch(`${API}/attendance/mark-all/${selectedDate}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Successfully marked all ${data.created} members as present`);
+        
+        // Store action ID for undo functionality
+        if (data.actionId) {
+          setLastMarkAllActionId(data.actionId);
+        }
+        
+        // Refresh attendance data
+        fetchAttendanceStats();
+      } else {
+        toast.error(data.message || 'Failed to mark all members present');
+      }
+    } catch (e) {
+      console.error('Mark all present error:', e);
+      toast.error('Failed to mark all members present');
+    } finally {
+      setMarkingAll(false);
+    }
   };
 
   const unmarkAll = () => {
     setAttendance({});
+  };
+
+  const handleUndoMarkAll = async () => {
+    if (!lastMarkAllActionId || !token) return;
+
+    setUndoingMarkAll(true);
+    try {
+      const response = await fetch(`${API}/attendance/mark-all/undo/${lastMarkAllActionId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Successfully undone mark all. ${data.undone} attendance records removed.`);
+        
+        // Clear the action ID
+        setLastMarkAllActionId(null);
+        
+        // Refresh attendance data
+        fetchAttendanceStats();
+      } else {
+        toast.error(data.message || 'Failed to undo mark all');
+      }
+    } catch (e) {
+      console.error('Undo mark all error:', e);
+      toast.error('Failed to undo mark all');
+    } finally {
+      setUndoingMarkAll(false);
+    }
+  };
+
+  const handleUndoIndividual = async (studentId: number) => {
+    const actionId = individualActions[selectedDate]?.[studentId];
+    if (!token) return;
+
+    setUndoingIndividual(prev => ({ ...prev, [studentId]: true }));
+    try {
+      // If we have a real actionId, use the undo endpoint
+      if (actionId && !actionId.startsWith('placeholder-')) {
+        const response = await fetch(`${API}/attendance/individual/undo/${actionId}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          toast.success('Successfully undone attendance marking');
+          
+          // Clear the action ID and update attendance state
+          setIndividualActions(prev => {
+            const newActions = { ...prev };
+            if (newActions[selectedDate]) {
+              const newDateActions = { ...newActions[selectedDate] };
+              delete newDateActions[studentId];
+              newActions[selectedDate] = newDateActions;
+            }
+            return newActions;
+          });
+          
+          setAttendance(prev => {
+            const newAttendance = { ...prev };
+            delete newAttendance[studentId];
+            return newAttendance;
+          });
+          
+          // Refresh attendance data
+          await fetchAllStudents();
+          await fetchAttendanceStats();
+        } else {
+          toast.error(data.message || 'Failed to undo attendance marking');
+        }
+      } else {
+        // For placeholder actionIds, we'll create a simple unmark by toggling the checkbox
+        // This simulates unmarking by updating the local state and refreshing data
+        console.log('Unmarking student with placeholder actionId:', studentId);
+        
+        // Use the new unmark endpoint
+        try {
+          const unmarkResponse = await fetch(`${API}/attendance/unmark-member/${selectedDate}/${studentId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (unmarkResponse.ok) {
+            console.log('Successfully unmarked via backend');
+            toast.success('Attendance marking removed');
+          } else {
+            const errorData = await unmarkResponse.json();
+            console.log('Backend unmarking failed:', errorData);
+            toast.error(errorData.message || 'Failed to unmark attendance');
+            return; // Don't proceed with local changes if backend fails
+          }
+        } catch (unmarkError) {
+          console.log('Backend unmarking error:', unmarkError);
+          toast.error('Failed to unmark attendance');
+          return; // Don't proceed with local changes if backend fails
+        }
+        
+        // Clear the action ID and update attendance state
+        setIndividualActions(prev => {
+          const newActions = { ...prev };
+          if (newActions[selectedDate]) {
+            const newDateActions = { ...newActions[selectedDate] };
+            delete newDateActions[studentId];
+            newActions[selectedDate] = newDateActions;
+          }
+          return newActions;
+        });
+        
+        setAttendance(prev => {
+          const newAttendance = { ...prev };
+          delete newAttendance[studentId];
+          return newAttendance;
+        });
+        
+        // Refresh attendance data to get the updated state from backend
+        await fetchAllStudents();
+        await fetchAttendanceStats();
+      }
+    } catch (e) {
+      console.error('Undo individual attendance error:', e);
+      toast.error('Failed to undo attendance marking');
+    } finally {
+      setUndoingIndividual(prev => ({ ...prev, [studentId]: false }));
+    }
   };
 
   const handleVisitorSubmit = async (e: React.FormEvent) => {
@@ -335,7 +573,7 @@ export default function MarkAttendance() {
     }
     
     await fetchAttendanceStats();
-    await fetchUnmarkedStudents();
+    await fetchAllStudents();
   };
 
   const filteredStudents = students;
@@ -585,10 +823,20 @@ export default function MarkAttendance() {
               <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
                 <button
                   onClick={markAllPresent}
-                  className="flex-1 rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 sm:flex-none"
+                  disabled={markingAll}
+                  className="flex-1 rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed sm:flex-none"
                 >
-                  Mark All
+                  {markingAll ? 'Marking All...' : 'Mark All'}
                 </button>
+                {lastMarkAllActionId && (
+                  <button
+                    onClick={handleUndoMarkAll}
+                    disabled={undoingMarkAll}
+                    className="flex-1 rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed sm:flex-none"
+                  >
+                    {undoingMarkAll ? 'Undoing...' : 'Undo Mark All'}
+                  </button>
+                )}
                 <button
                   onClick={unmarkAll}
                   className="flex-1 rounded bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700 sm:flex-none"
@@ -598,7 +846,7 @@ export default function MarkAttendance() {
               </div>
             </div>
 
-            {/* Members List */}
+            {/* Members List - Grouped */}
             <div className="mb-6 rounded-lg border bg-white p-4">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-base font-semibold sm:text-lg">Members List</h3>
@@ -610,37 +858,175 @@ export default function MarkAttendance() {
               {loading ? (
                 <div className="text-center py-8 text-gray-500">Loading members...</div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {filteredStudents.map((student) => (
-                    <div key={student.id} className="flex items-center gap-3 rounded-lg border p-3">
-                      <input
-                        type="checkbox"
-                        checked={attendance[student.id] || false}
-                        onChange={(e) => handleAttendanceChange(student.id, e.target.checked)}
-                        disabled={attendanceStatus?.isClosed}
-                        className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                      <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-200 sm:h-12 sm:w-12">
-                        {student.profileImageUrl ? (
-                          <img
-                            src={student.profileImageUrl}
-                            alt={student.fullName}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center text-gray-400">
-                            <span className="text-lg">👤</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium sm:text-base">{student.fullName}</div>
-                        <div className="text-xs text-gray-500 sm:text-sm">
-                          {student.hall} • {student.level}
+                <div className="space-y-6">
+                  {/* Marked Students Section */}
+                  {(() => {
+                    const markedStudents = filteredStudents.filter(student => attendance[student.id]);
+                    console.log('Filtered students:', filteredStudents.length);
+                    console.log('Attendance state:', attendance);
+                    console.log('Marked students:', markedStudents.length);
+                    return markedStudents.length > 0 && (
+                      <div>
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                          <h4 className="text-sm font-semibold text-green-700">Marked Present ({markedStudents.length})</h4>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {markedStudents.map((student) => (
+                            <div key={student.id} className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
+                              <input
+                                type="checkbox"
+                                checked={true}
+                                onChange={(e) => handleAttendanceChange(student.id, e.target.checked)}
+                                disabled={attendanceStatus?.isClosed}
+                                className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              />
+                              <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-200 sm:h-12 sm:w-12">
+                                {student.profileImageUrl ? (
+                                  <img
+                                    src={student.profileImageUrl}
+                                    alt={student.fullName}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center text-gray-400">
+                                    <span className="text-lg">👤</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium sm:text-base text-green-800">{student.fullName}</div>
+                                <div className="text-xs text-green-600 sm:text-sm">
+                                  {student.hall} • {student.level}
+                                </div>
+                              </div>
+                              {(() => {
+                                const hasAction = individualActions[selectedDate]?.[student.id];
+                                console.log(`Student ${student.id} (${student.fullName}) has action:`, hasAction);
+                                console.log('Individual actions for current date:', individualActions[selectedDate]);
+                                return hasAction && (
+                                  <button
+                                    onClick={() => handleUndoIndividual(student.id)}
+                                    disabled={undoingIndividual[student.id]}
+                                    className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Undo attendance marking"
+                                  >
+                                    {undoingIndividual[student.id] ? '...' : 'Undo'}
+                                  </button>
+                                );
+                              })()}
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })()}
+
+                  {/* Unmarked Students Section */}
+                  {(() => {
+                    const unmarkedStudents = filteredStudents.filter(student => !attendance[student.id]);
+                    console.log('Unmarked students:', unmarkedStudents.length);
+                    return unmarkedStudents.length > 0 && (
+                      <div>
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+                          <h4 className="text-sm font-semibold text-gray-700">Not Marked ({unmarkedStudents.length})</h4>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {unmarkedStudents.map((student) => (
+                            <div key={student.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                              <input
+                                type="checkbox"
+                                checked={false}
+                                onChange={(e) => handleAttendanceChange(student.id, e.target.checked)}
+                                disabled={attendanceStatus?.isClosed}
+                                className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              />
+                              <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-200 sm:h-12 sm:w-12">
+                                {student.profileImageUrl ? (
+                                  <img
+                                    src={student.profileImageUrl}
+                                    alt={student.fullName}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center text-gray-400">
+                                    <span className="text-lg">👤</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium sm:text-base">{student.fullName}</div>
+                                <div className="text-xs text-gray-500 sm:text-sm">
+                                  {student.hall} • {student.level}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Fallback: Show all students if no sections are visible */}
+                  {(() => {
+                    const markedStudents = filteredStudents.filter(student => attendance[student.id]);
+                    const unmarkedStudents = filteredStudents.filter(student => !attendance[student.id]);
+                    
+                    if (markedStudents.length === 0 && unmarkedStudents.length === 0 && filteredStudents.length > 0) {
+                      return (
+                        <div>
+                          <div className="mb-3 flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                            <h4 className="text-sm font-semibold text-blue-700">All Students ({filteredStudents.length})</h4>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {filteredStudents.map((student) => (
+                              <div key={student.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                                <input
+                                  type="checkbox"
+                                  checked={attendance[student.id] || false}
+                                  onChange={(e) => handleAttendanceChange(student.id, e.target.checked)}
+                                  disabled={attendanceStatus?.isClosed}
+                                  className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-200 sm:h-12 sm:w-12">
+                                  {student.profileImageUrl ? (
+                                    <img
+                                      src={student.profileImageUrl}
+                                      alt={student.fullName}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-gray-400">
+                                      <span className="text-lg">👤</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm font-medium sm:text-base">{student.fullName}</div>
+                                  <div className="text-xs text-gray-500 sm:text-sm">
+                                    {student.hall} • {student.level}
+                                  </div>
+                                </div>
+                                {individualActions[selectedDate]?.[student.id] && (
+                                  <button
+                                    onClick={() => handleUndoIndividual(student.id)}
+                                    disabled={undoingIndividual[student.id]}
+                                    className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Undo attendance marking"
+                                  >
+                                    {undoingIndividual[student.id] ? '...' : 'Undo'}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               )}
             </div>

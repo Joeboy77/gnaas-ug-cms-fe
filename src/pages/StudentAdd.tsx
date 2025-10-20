@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/auth';
 import toast from 'react-hot-toast';
 import logo from '../assets/gnaasug.png';
 import { notificationService } from '../services/notificationService';
+import BulkUploadModal from '../components/BulkUploadModal';
 
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
@@ -15,16 +16,26 @@ export default function StudentAdd() {
   const [imagePreview, setImagePreview] = useState<string>('');
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     fullName: '',
     gender: '',
     level: '',
+    programOfStudy: '',
     programDurationYears: '',
+    expectedCompletionYear: '',
     hall: '',
     role: '',
     dateOfAdmission: '',
+    dateOfBirth: '',
+    residence: '',
+    guardianName: '',
+    guardianContact: '',
+    localChurchName: '',
+    localChurchLocation: '',
+    district: '',
     phone: '',
     email: '',
     profileImageUrl: '',
@@ -98,6 +109,7 @@ export default function StudentAdd() {
         body: JSON.stringify({
           ...form,
           programDurationYears: Number(form.programDurationYears),
+          expectedCompletionYear: form.expectedCompletionYear ? Number(form.expectedCompletionYear) : null,
           profileImageUrl: form.profileImageUrl || null,
           phone: form.phone || null,
           email: form.email || null,
@@ -111,7 +123,7 @@ export default function StudentAdd() {
       
       if (closeAfter) navigate('/secretary');
       else {
-        setForm({ ...form, fullName: '', phone: '', email: '', profileImageUrl: '' });
+        setForm({ ...form, fullName: '', phone: '', email: '', profileImageUrl: '', programOfStudy: '', expectedCompletionYear: '', dateOfBirth: '', residence: '', guardianName: '', guardianContact: '', localChurchName: '', localChurchLocation: '', district: '' });
         setImagePreview('');
         await loadNextCode();
       }
@@ -127,7 +139,13 @@ export default function StudentAdd() {
       <header className="border-b bg-white px-4 py-3 sm:px-6">
         <div className="mx-auto max-w-6xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center space-x-3">
-            <img src={logo} alt="GNAASUG" className="h-10 w-10 sm:h-12 sm:w-12" />
+            <img 
+              src={logo} 
+              alt="GNAASUG" 
+              className="h-10 w-10 sm:h-12 sm:w-12 cursor-pointer hover:opacity-80 transition-opacity" 
+              onClick={() => navigate('/secretary')}
+              title="Go to Secretary Dashboard"
+            />
             <h1 className="text-base font-bold text-gray-900 sm:text-lg">Add New Student</h1>
           </div>
           <div className="flex items-center justify-between sm:space-x-3">
@@ -145,7 +163,18 @@ export default function StudentAdd() {
               <div className="text-base font-semibold sm:text-lg">Add New Student</div>
               <div className="text-xs text-gray-500 sm:text-sm">Fill in the student information below to add them to the system</div>
             </div>
-            <div className="rounded bg-gray-100 px-3 py-2 text-xs text-gray-600 sm:text-sm">Auto ID: {nextCode || 'Loading...'}</div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsBulkUploadModalOpen(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Bulk Upload
+              </button>
+              <div className="rounded bg-gray-100 px-3 py-2 text-xs text-gray-600 sm:text-sm">Auto ID: {nextCode || 'Loading...'}</div>
+            </div>
           </div>
 
           <div className="mt-6 flex flex-col items-center">
@@ -215,6 +244,14 @@ export default function StudentAdd() {
               </select>
             </div>
             <div>
+              <label className="mb-2 block text-sm font-medium">Program of Study</label>
+              <input name="programOfStudy" value={form.programOfStudy} onChange={onChange} placeholder="e.g. Computer Science" className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium">Expected Completion Year</label>
+              <input name="expectedCompletionYear" type="number" min="1900" max="2100" value={form.expectedCompletionYear} onChange={onChange} placeholder="e.g. 2027" className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
+            <div>
               <label className="mb-2 block text-sm font-medium">Hall<span className="text-red-500">*</span></label>
               <select name="hall" value={form.hall} onChange={onChange} className="w-full rounded border p-3 text-sm sm:text-base">
                 <option value="">Select Hall</option>
@@ -254,6 +291,10 @@ export default function StudentAdd() {
               <label className="mb-2 block text-sm font-medium">Date of Admission<span className="text-red-500">*</span></label>
               <input name="dateOfAdmission" type="date" value={form.dateOfAdmission} onChange={onChange} className="w-full rounded border p-3 text-sm sm:text-base" />
             </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium">Date of Birth</label>
+              <input name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={onChange} className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium">Phone Number</label>
@@ -262,6 +303,30 @@ export default function StudentAdd() {
             <div>
               <label className="mb-2 block text-sm font-medium">Email Address</label>
               <input name="email" type="email" value={form.email} onChange={onChange} placeholder="student@example.com" className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium">Place of Residence</label>
+              <input name="residence" value={form.residence} onChange={onChange} placeholder="e.g. Madina" className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium">Parent/Guardian Name</label>
+              <input name="guardianName" value={form.guardianName} onChange={onChange} placeholder="e.g. John Doe" className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium">Parent/Guardian Contact</label>
+              <input name="guardianContact" value={form.guardianContact} onChange={onChange} placeholder="e.g. +233 XX XXX XXXX" className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium">Local Church Name</label>
+              <input name="localChurchName" value={form.localChurchName} onChange={onChange} placeholder="e.g. Legon SDA" className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium">Local Church Location</label>
+              <input name="localChurchLocation" value={form.localChurchLocation} onChange={onChange} placeholder="e.g. Legon" className="w-full rounded border p-3 text-sm sm:text-base" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium">District</label>
+              <input name="district" value={form.district} onChange={onChange} placeholder="e.g. Accra North" className="w-full rounded border p-3 text-sm sm:text-base" />
             </div>
           </div>
 
@@ -354,6 +419,17 @@ export default function StudentAdd() {
           </div>
         </div>
       )}
+
+      {/* Bulk Upload Modal */}
+      <BulkUploadModal
+        isOpen={isBulkUploadModalOpen}
+        onClose={() => setIsBulkUploadModalOpen(false)}
+        onSuccess={() => {
+          setIsBulkUploadModalOpen(false);
+          // Optionally refresh the form or navigate back to dashboard
+          navigate('/secretary');
+        }}
+      />
     </div>
   );
 }
